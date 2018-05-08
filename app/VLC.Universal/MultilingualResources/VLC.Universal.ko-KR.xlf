@@ -1173,6 +1173,10 @@
           <source>2.35:1</source>
           <target state="new">2.35:1</target>
         </trans-unit>
+        <trans-unit id="IcelandicLanguage" translate="yes" xml:space="preserve">
+          <source>Icelandic</source>
+          <target state="new">Icelandic</target>
+        </trans-unit>
       </group>
     </body>
   </file>
