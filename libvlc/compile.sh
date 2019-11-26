@@ -65,7 +65,7 @@ esac
 TESTED_HASH=45df8a6415
 if [ ! -d "vlc" ]; then
     echo "VLC source not found, cloning"
-    git clone http://git.videolan.org/git/vlc/vlc-3.0.git vlc
+    git clone https://github.com/videolan/vlc-3.0.git vlc
     cd vlc
     git am -3 ../patches/*.patch
     if [ $? -ne 0 ]; then
@@ -176,7 +176,9 @@ cd $CONTRIB_FOLDER
     --disable-x264 \
     --disable-x265 \
     --disable-srt \
-    --disable-aom
+    --disable-aom \
+    --disable-dav1d \
+    --enable-pdb
 
 echo "EXTRA_CFLAGS=${EXTRA_CPPFLAGS}" >> config.mak
 echo "EXTRA_LDFLAGS=${EXTRA_LDFLAGS}" >> config.mak
@@ -200,7 +202,7 @@ LDFLAGS="${EXTRA_LDFLAGS}" \
 CC="${COMPILER}" \
 CXX="${COMPILERXX}" \
 ac_cv_search_connect="-lws2_32" \
-../../configure.sh --host=${TARGET_TUPLE}
+../../configure.sh --host=${TARGET_TUPLE} --enable-pdb
 
 echo "Building"
 make $MAKEFLAGS
