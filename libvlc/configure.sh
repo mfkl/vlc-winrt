@@ -23,7 +23,7 @@ OPTIONS="
       --enable-sse --enable-mmx
       --disable-libcddb
       --enable-zvbi --disable-telx
-      --enable-mad
+      --disable-mad
       --disable-a52
       --enable-dsm
       --disable-smbclient
