@@ -1,0 +1,47 @@
+From b47f45a8aed5c66ad5b4c862131f6292dcfb5e29 Mon Sep 17 00:00:00 2001
+From: LLVM MinGW <root@localhost>
+Date: Tue, 26 Nov 2019 11:48:05 +0000
+Subject: [PATCH] WIP pdb support
+
+---
+ configure.ac           | 13 +++++++++++++
+ extras/tools/bootstrap |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index 03a8adb8a7..b4ee96d3af 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -322,6 +322,19 @@ AS_IF([test "${SYS}" = "mingw32"],[
+   ])
+ AC_DEFINE_UNQUOTED(VLC_WINSTORE_APP, ${vlc_winstore_app}, [Define to 1 if you want to build for Windows Store apps])
+ 
++vlc_build_pdb=0
++AC_ARG_ENABLE([pdb],
++     AS_HELP_STRING([--enable-pdb],
++                    [Build PDB files for windows targets (default off)]))
++AS_IF([test "${SYS}" = "mingw32"],[
++  AS_IF([test "${enable_pdb}" = "yes"], [
++    vlc_build_pdb=1
++    AX_APPEND_FLAG([-g -gcodeview],[CFLAGS])
++    AX_APPEND_FLAG([-g -gcodeview],[CXXFLAGS])
++    LDFLAGS="${LDFLAGS} -Wl,-pdb="
++  ],[])
++])
++
+ AM_CONDITIONAL(HAVE_LINUX,   test "${SYS}" = "linux")
+ AM_CONDITIONAL(HAVE_OS2,     test "${SYS}" = "os2")
+ 
+diff --git a/extras/tools/bootstrap b/extras/tools/bootstrap
+index 06a62f511d..007c5b381b 100755
+--- a/extras/tools/bootstrap
++++ b/extras/tools/bootstrap
+@@ -133,7 +133,7 @@ check automake 1.15
+ check m4 1.4.16
+ check libtool 2.4
+ check pkg-config
+-check cmake 3.8.2
++check cmake 3.13.4
+ check yasm
+ check_tar
+ check ragel

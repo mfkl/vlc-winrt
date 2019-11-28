@@ -1,0 +1,38 @@
+From 9091cdf133e33291f5d65e3ce6bdbb0bb3a6165e Mon Sep 17 00:00:00 2001
+From: LLVM MinGW <root@localhost>
+Date: Wed, 27 Nov 2019 11:56:06 +0000
+Subject: [PATCH] add more PDB related conf missing
+
+---
+ configure.ac         | 1 +
+ contrib/src/main.mak | 5 +++++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/configure.ac b/configure.ac
+index 89b27bd21c..53354a47e0 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -350,6 +350,7 @@ AM_CONDITIONAL(HAVE_WIN32,   test "${SYS}" = "mingw32")
+ AM_CONDITIONAL(HAVE_WIN64,   test "${HAVE_WIN64}" = "1") dnl Only used for the packaging
+ AM_CONDITIONAL([HAVE_WINSTORE], [test "$vlc_winstore_app" = "1"])
+ AM_CONDITIONAL([HAVE_WIN32_DESKTOP], [test "${SYS}" = "mingw32" -a "$vlc_winstore_app" = "0"])
++AM_CONDITIONAL([ENABLE_PDB],   [test "$vlc_build_pdb" = "1"])
+ 
+ dnl
+ dnl Sadly autoconf does not think about testing foo.exe when ask to test
+diff --git a/contrib/src/main.mak b/contrib/src/main.mak
+index cbd7a2eba8..bc8e806654 100644
+--- a/contrib/src/main.mak
++++ b/contrib/src/main.mak
+@@ -169,6 +169,11 @@ CFLAGS := $(CFLAGS) $(EXTRA_CFLAGS) -g
+ CXXFLAGS := $(CXXFLAGS) $(EXTRA_CFLAGS) $(EXTRA_CXXFLAGS) -g
+ LDFLAGS := $(LDFLAGS) -L$(PREFIX)/lib $(EXTRA_LDFLAGS)
+ 
++ifdef ENABLE_PDB
++CFLAGS := $(CFLAGS) -gcodeview
++CXXFLAGS := $(CXXFLAGS) -gcodeview
++endif
++
+ ifndef WITH_OPTIMIZATION
+ CFLAGS := $(CFLAGS) -O0
+ CXXFLAGS := $(CXXFLAGS) -O0

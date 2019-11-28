@@ -1,0 +1,1072 @@
+From 6a4777cfa5a91d15e392390bc8649b12d667089a Mon Sep 17 00:00:00 2001
+From: LLVM MinGW <root@localhost>
+Date: Tue, 26 Nov 2019 10:27:49 +0000
+Subject: [PATCH] update tools patches to match current vlc 4
+
+---
+ Makefile.am                                   |   8 +-
+ contrib/bootstrap                             |   6 +
+ extras/tools/SHA512SUMS                       |  11 +-
+ extras/tools/automake-clang.patch             |  51 ++++++
+ extras/tools/bootstrap                        | 114 ++++++++++---
+ extras/tools/cmake-msys-FindPkg.patch         |  27 +++
+ ...code.patch => libtool-2.4.6-bitcode.patch} |  26 ++-
+ extras/tools/libtool-2.4.6-clang-libs.patch   |   9 +-
+ .../tools/libtool-2.4.6-response-files.patch  |  83 ++++++++++
+ ....4.2-san.patch => libtool-2.4.6-san.patch} |  34 ++--
+ extras/tools/packages.mak                     |  14 +-
+ extras/tools/tools.mak                        | 154 ++++++++++++------
+ 12 files changed, 413 insertions(+), 124 deletions(-)
+ create mode 100644 extras/tools/automake-clang.patch
+ create mode 100644 extras/tools/cmake-msys-FindPkg.patch
+ rename extras/tools/{libtool-2.4.2-bitcode.patch => libtool-2.4.6-bitcode.patch} (55%)
+ create mode 100644 extras/tools/libtool-2.4.6-response-files.patch
+ rename extras/tools/{libtool-2.4.2-san.patch => libtool-2.4.6-san.patch} (52%)
+
+diff --git a/Makefile.am b/Makefile.am
+index 3ac82623ad..33b9ab73a1 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -61,10 +61,14 @@ EXTRA_DIST += \
+ 	extras/tools/packages.mak \
+ 	extras/tools/tools.mak \
+ 	extras/tools/SHA512SUMS \
++	extras/tools/automake-clang.patch \
+ 	extras/tools/bison-macOS-7df04f9.patch \
+ 	extras/tools/bison-macOS-c41f233c.patch \
+-	extras/tools/libtool-2.4.2-bitcode.patch \
+-	extras/tools/libtool-2.4.2-san.patch \
++	extras/tools/cmake-msys-FindPkg.patch \
++	extras/tools/libtool-2.4.6-bitcode.patch \
++	extras/tools/libtool-2.4.6-clang-libs.patch \
++	extras/tools/libtool-2.4.6-response-files.patch \
++	extras/tools/libtool-2.4.6-san.patch \
+ 	extras/tools/ragel-6.8-javacodegen.patch
+ 
+ ###############################################################################
+diff --git a/contrib/bootstrap b/contrib/bootstrap
+index b7cab040a5..a2c55604ff 100755
+--- a/contrib/bootstrap
++++ b/contrib/bootstrap
+@@ -35,6 +35,7 @@ usage()
+ 	echo "  --enable-ad-clauses configure to build packages with advertising clauses"
+ 	echo "                   (USE AT YOUR OWN LEGAL RISKS)"
+ 	echo "  --disable-optim  disable optimization in libraries"
++	echo "  --enable-pdb     generate debug information in PDB format"
+ }
+ 
+ BUILD=
+@@ -49,6 +50,7 @@ GPL="1"
+ GNUV3="1"
+ AD_CLAUSES=
+ WITH_OPTIMIZATION="1"
++ENABLE_PDB=
+ 
+ if test ! -f "../../contrib/src/main.mak"
+ then
+@@ -84,6 +86,9 @@ do
+ 		--disable-optim)
+ 			WITH_OPTIMIZATION=
+ 			;;
++		--enable-pdb)
++			ENABLE_PDB=1
++			;;
+ 		--enable-small)
+ 			ENABLE_SMALL=1
+ 			;;
+@@ -286,6 +291,7 @@ test -z "$GPL" || add_make_enabled "GPL"
+ test -z "$GNUV3" || add_make_enabled "GNUV3"
+ test -z "$AD_CLAUSES" || add_make_enabled "AD_CLAUSES"
+ test -z "$WITH_OPTIMIZATION" || add_make_enabled "WITH_OPTIMIZATION"
++test -z "$ENABLE_PDB" || add_make_enabled "ENABLE_PDB"
+ test "`uname -o 2>/dev/null`" != "Msys" || add_make "CMAKE_GENERATOR := -G \"MSYS Makefiles\""
+ 
+ #
+diff --git a/extras/tools/SHA512SUMS b/extras/tools/SHA512SUMS
+index abc6410fe0..13735a762c 100644
+--- a/extras/tools/SHA512SUMS
++++ b/extras/tools/SHA512SUMS
+@@ -1,9 +1,9 @@
+ 3954a6ad3f522c135f327ba0d376eb16ae42103849c8cc5cd6c8c6e87b8c5433c95a0f2d4dfa3e6c2705ee0b8996e5b27d0b2248f64a05fc8c902116cc45a7b2  apache-ant-1.9.7.tar.bz2
+ e34c7818bcde14d2cb13cdd293ed17d70740d4d1fd7c67a07b415491ef85d42f450d4fe5f8f80cc330bf75c40a62774c51a4336e06e8da07a4cbc49922d975ee  autoconf-2.69.tar.gz
+-6f201f96431f5e3d3081c4d71c884ae1f4f45b9c5c7a1306c9f3f3d4bd5ee5f6fae47b55d35241b3cae84be555cc0ab84c034acdcd5d9a071f6f0ecdee2dec73  automake-1.15.tar.gz
+-693520e53fa21e81f5f15e6f8979e5264e3bf7e194e4c19b884a44767b3b6d6535dee674f355440e7dcac480372882152c0523ac3c2f1c12d51b43540bcffa59  cmake-3.13.1.tar.gz
++47b0120a59e3e020529a6ce750297d7de1156fd2be38db5d101e50120f11b40c28741ecd5eacf2790a9e25386713dcf7717339cfa5d7943d0dbf47c417383448  automake-1.16.1.tar.gz
++5a2cc092109652ced5a3a6ae00fe0c7d134efa7d90d59f376368408bb684343db9e144ee53b184f3437f8a86cf9976a130a1e1676c993d56b278a6640a418c93  cmake-3.13.4.tar.gz
+ 9953413376c6b33e9e49d1f4f5b2d50075e0b1defb17b3c233d186d21416e6b607df11f6030588eeec3b025e1075c9c37a3db3c872fc22329d1dc0d0c6e2d9d0  gas-preprocessor-72887b9.tar.gz
+-0e54af7bbec376f943f2b8e4f13631fe5627b099a37a5f0252e12bade76473b0a36a673529d594778064cd8632abdc43d8a20883d66d6b27738861afbb7e211d  libtool-2.4.2.tar.gz
++3233d81cb2739a54b840a0a82064eebbfaa4fb442fb993a35d6bd41d8395c51f038c90ae048b9252f172d0a5bbfb4b36e2b13d4477001f9ff7d4124237819a18  libtool-2.4.6.tar.gz
+ 29254dd4267a093e8d9da3a26df8b02564044cdb4506be539ec1aff4e5d406477bcf32f5e813c840f3aec77293bfe2cdde18f6a21724a7e0bfff646ec88b74ae  m4-1.4.18.tar.gz
+ 56a9656539448972bc3080357ccc987bd4cbca3847758fe41251eb8af1a5e403a75f38d1344fa2c0bd56de880f37f3eaafbe7116c506f33331e7a8dd8a53cf2a  pkg-config-0.28-1.tar.gz
+ 9f85a98e55cbc9f245a3079d5a597f778454bc945f0942cb10fbdfbde5fe12b17d6dda93d6a8d5281459ad30a3840be7e0712feb33a824226884e7e4da54a061  protobuf-3.1.0.tar.gz
+@@ -14,6 +14,9 @@ dbbb0bb348fac54612d29182c09c88bda7096dea03bd94f03c580c24146e65a06db12808c6a1a9ad
+ e80ace766e145f6486e76da1a5a9819221b7f406745a02529b4ad220ef7f51ddd67f23d0d8b187bffc9725d9f9742ae5f3a0bb23ee5b2a61153332fb3e286b77  yasm-1.2.0.tar.gz
+ bbdc23e7772e49da1c7c47e66d4e4efbfbfe9b21dbc59bf3ad9a6e573eecac6c9f52c7f11a64be9897e8deb99ef7ba015164aa8232aa391b901dd7db03632412  bison-3.0.4.tar.xz
+ e9785f3d620a204b7d20222888917dc065c2036cae28667065bf7862dfa1b25235095a12fd04efdbd09bfd17d3452e6b9ef953a8c1137862ff671c97132a082e  flex-2.6.4.tar.gz
++611e573756e3e936ce16b456df9583eb9acae51a0fbd28212444ddc0c1c5ec21e893d7a666bd77ef53423024939291a31dcf86d129126fa707b729d80b24184d  nasm-2.13.03.tar.gz
++073042fa2dc48804c58e76f036130a669e19612c25427b0ab14d0b366b549a63751bf3af03bfd0745d7c4f72497a4b2aab26a3cc6de83189ce111679073878e1  gettext-0.19.8.1.tar.gz
++d24849b93de58b20f518c071687e7bfa653a96600382f36c4cf7fc1047656458f75f093b911b786b18b6931b2453cb60868ecbe07cc7d2984e5981a874b34942  help2man-1.47.6.tar.xz
+ 8d23dde18525dccaa648ca01df40151e7f00cec4846bd611c8970dbcfc1fb57a453facfe4d41462e7c3c8bb548d44b961a04e4fc3073ab6b65063e53f42bf6fd  nasm-2.14.tar.gz
+-ba4921530049f002c362bc420bd87181074893109ce4b1fedb18545227d27ea96c09798eb02f1f8fabbf6ac5c185b0b7eca42df2a34ad0559f95a97d78811702  meson-0.48.1.tar.gz
++b0b220de2a20c355cbd2f63aff195374ad8b2dae64f0dc4efb7abf84d7a9e70b6d4239d3d94b2b8ba2de5dd6e871589848b057c842c8f256016c666e9aa882f1  meson-0.51.1.tar.gz
+ 1650bf9e3eddeb0b0fbb415c2b8e0a7c094421e991fa8139fd77fae0f6ee7ee980b7cf5e98d883c3a884f99abcb06fa26e3980af3a3a5bb6dd655124755782c2  ninja-1.8.2.tar.gz
+diff --git a/extras/tools/automake-clang.patch b/extras/tools/automake-clang.patch
+new file mode 100644
+index 0000000000..d44b83f738
+--- /dev/null
++++ b/extras/tools/automake-clang.patch
+@@ -0,0 +1,51 @@
++--- automake/lib/depcomp	2019-03-01 16:29:06.073143400 +0100
+++++ automake/lib/depcomp.gccwindows	2019-03-01 16:29:30.646075800 +0100
++@@ -563,6 +563,36 @@ msvc7msys)
++   exit 1
++   ;;
++ 
+++gccwindows)
+++## clang producing windows pathes
+++  for arg
+++  do
+++    case $arg in
+++    -c) set fnord "$@" -MT "$object" -MD -MP -MF "$tmpdepfile" "$arg" ;;
+++    *)  set fnord "$@" "$arg" ;;
+++    esac
+++    shift # fnord
+++    shift # $arg
+++  done
+++  "$@"
+++  stat=$?
+++  if test $stat -ne 0; then
+++    rm -f "$tmpdepfile"
+++    exit $stat
+++  fi
+++  rm -f "$depfile"
+++
+++  # Extracts the file names and escapes backslashes for cygpath.
+++  sed < "$tmpdepfile" '
+++/^*\(.*\)/ {
+++  s//\1/
+++  s/\\/\\\\/g
+++  p
+++}' | $cygpath_u | sed "s, /, \\\\,g" >> "$depfile"
+++  echo >> "$depfile" # make sure the fragment doesn't end with a backslash
+++  rm -f "$tmpdepfile"
+++  ;;
+++
++ #nosideeffect)
++   # This comment above is used by automake to tell side-effect
++   # dependency tracking mechanisms from slower ones.
++--- automake/m4/depend.m4	2019-03-01 16:22:29.083243300 +0100
+++++ automake/m4/depend.m4.gccwindows	2019-03-01 16:22:36.408049300 +0100
++@@ -152,7 +152,8 @@ fi
++ AC_SUBST([$1DEPMODE], [depmode=$am_cv_$1_dependencies_compiler_type])
++ AM_CONDITIONAL([am__fastdep$1], [
++   test "x$enable_dependency_tracking" != xno \
++-  && test "$am_cv_$1_dependencies_compiler_type" = gcc3])
+++  && ( test "$am_cv_$1_dependencies_compiler_type" = gcc3 ||
+++       test "$am_cv_$1_dependencies_compiler_type" = gccwindows )])
++ ])
++ 
++ 
+diff --git a/extras/tools/bootstrap b/extras/tools/bootstrap
+index 8e5cae9b7a..06a62f511d 100755
+--- a/extras/tools/bootstrap
++++ b/extras/tools/bootstrap
+@@ -16,13 +16,7 @@
+ # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston MA 02110-1301, USA.
+ 
+ export LC_ALL=
+-NEEDED=
+-
+-if [ ! -f tools.mak ]
+-then
+-	echo "You must run me in ./extras/tools !"
+-	exit 1
+-fi
++FOUND=
+ 
+ check_version() {
+     gotver=$2
+@@ -39,16 +33,37 @@ check_version() {
+          -o "$needmajor" -eq "$gotmajor" -a "$needminor" -eq "$gotminor" -a "$needmicro" -gt "$gotmicro" ]
+     then
+         echo "$1 too old"
+-        NEEDED="$NEEDED .$1"
++        NEEDED="$NEEDED $1"
++    else
++        FOUND="$FOUND $1"
++    fi
++
++}
++
++check_version_majmin() {
++    gotver=$2
++    gotmajor=`echo $gotver|cut -d. -f1`
++    gotminor=`echo $gotver|cut -d. -f2`
++    needmajor=`echo $3|cut -d. -f1`
++    needminor=`echo $3|cut -d. -f2`
++    if [ "$needmajor" -ne "$gotmajor" \
++         -o "$needminor" -ne "$gotminor" ]
++    then
++        echo "$1 not compatible"
++        NEEDED="$NEEDED $1"
++    else
++        FOUND="$FOUND $1"
+     fi
+ 
+ }
+ 
+ check_tar() {
+-if ! tar PcJ /dev/null >/dev/null 2>&1
++if ! tar PcJ /dev/null >/dev/null 2>&1 && ! tar PcJf /dev/null /dev/null 2>&1
+ then
+     echo "tar doesn't support xz (J option)"
+-    NEEDED="$NEEDED .tar .xz"
++    NEEDED="$NEEDED tar xz"
++else
++    FOUND="$FOUND tar xz"
+ fi
+ }
+ 
+@@ -59,7 +74,9 @@ echo "test file for GNU sed" > $tmp
+ if ! sed -i -e 's/sed//' $tmp >/dev/null 2>&1
+ then
+     echo "sed doesn't do in-place editing (-i option)"
+-    NEEDED="$NEEDED .sed"
++    NEEDED="$NEEDED sed"
++else
++    FOUND="$FOUND sed"
+ fi
+ }
+ 
+@@ -67,12 +84,15 @@ check_nasm() {
+ if ! nasm -v >/dev/null 2>&1
+ then
+     echo "nasm not found"
+-    NEEDED="$NEEDED .nasm"
++    NEEDED="$NEEDED nasm"
+ else
+     # found, need to check version ?
+-    [ -z "$1" ] && return # no
+-    gotver=`nasm -v | cut -d ' ' -f 3`
+-    check_version nasm $gotver $1
++    if [ -z "$1" ];then
++        FOUND="$FOUND nasm"
++    else
++        gotver=`nasm -v | cut -d ' ' -f 3`
++        check_version nasm $gotver $1
++    fi
+ fi
+ }
+ 
+@@ -80,12 +100,31 @@ check() {
+ if ! $1 --version >/dev/null 2>&1 && ! $1 -version >/dev/null 2>&1
+ then
+     echo "$1 not found"
+-    NEEDED="$NEEDED .$1"
++    NEEDED="$NEEDED $1"
+ else
+     # found, need to check version ?
+-    [ -z "$2" ] && return # no
+-    gotver=`$1 --version | head -1 | sed s/'.* '//`
+-    check_version $1 $gotver $2
++    if [ -z "$2" ];then
++        FOUND="$FOUND $1"
++    else
++        gotver=`$1 --version | head -1 | sed s/'.* '//`
++        check_version $1 $gotver $2
++    fi
++fi
++}
++
++check_majmin() {
++if ! $1 --version >/dev/null 2>&1 && ! $1 -version >/dev/null 2>&1 && ! $1 --version 2>/dev/null
++then
++    echo "$1 not found"
++    NEEDED="$NEEDED $1"
++else
++    # found, need to check version ?
++    if [ -z "$2" ];then
++        FOUND="$FOUND $1"
++    else
++        gotver=`$1 --version | head -1 | sed s/'.* '//`
++        check_version_majmin $1 $gotver $2
++    fi
+ fi
+ }
+ 
+@@ -99,20 +138,22 @@ check yasm
+ check_tar
+ check ragel
+ check_sed
+-check protoc 2.6.0
++check_majmin protoc 3.1.0
+ check ant
+ check xz
+ check bison 3.0.0
+ check flex
+ check_nasm 2.13.02
+-check meson 0.48.1
++check gettext
++check help2man
++check meson 0.51.1
+ check ninja
+ 
+-[ -n "$NEEDED" ] && mkdir -p build/bin && echo "To-be-built packages: `echo $NEEDED | sed 's/\.//g'`"
++DEPS_ONLY="help2man"
+ 
+ CPUS=
+ case `uname` in
+-    Linux|MINGW32*|MINGW64*)
++    Linux|MINGW32*|MINGW64*|*MSYS*)
+         CPUS=`getconf _NPROCESSORS_ONLN 2>&1`
+      ;;
+     Darwin|FreeBSD|NetBSD)
+@@ -129,14 +170,37 @@ case `uname` in
+      ;;
+ esac
+ 
++BOOTSTRAP_PATH="$( cd "$(dirname "$0")" ; pwd -P )"
+ 
+ cat > Makefile << EOF
++TOOLS = $BOOTSTRAP_PATH
+ MAKEFLAGS += -j$CPUS
+ CMAKEFLAGS += --parallel=$CPUS
+ PREFIX=\$(abspath ./build)
++PATH=\${PREFIX}/bin:$PATH
++EOF
++
++for t in $FOUND; do
++    echo ".$t:" >> Makefile
++done
++
++for t in $NEEDED; do
++    echo .$t: .build$t >> Makefile
++    case "$t" in
++        *$DEPS_ONLY*)
++            ;; # Dependency only, not build by default
++        *)
++            PACKAGES="$PACKAGES $t"
++            TARGETS="$TARGETS .build$t"
++            ;;
++    esac
++done
++
++[ -n "$PACKAGES" ] && mkdir -p build/bin && echo "To-be-built packages: $PACKAGES"
+ 
+-all: $NEEDED
++cat >> Makefile << EOF
++all: $TARGETS
+ 	@echo "You are ready to build VLC and its contribs"
+ 
+-include tools.mak
++include \$(TOOLS)/tools.mak
+ EOF
+diff --git a/extras/tools/cmake-msys-FindPkg.patch b/extras/tools/cmake-msys-FindPkg.patch
+new file mode 100644
+index 0000000000..2448259dcc
+--- /dev/null
++++ b/extras/tools/cmake-msys-FindPkg.patch
+@@ -0,0 +1,27 @@
++--- ./Modules/FindPkgConfig.cmake.msys	2017-05-31 16:00:09.000000000 +0200
+++++ ./Modules/FindPkgConfig.cmake	2018-10-03 16:43:37.880991800 +0200
++@@ -345,6 +345,24 @@ macro(_pkg_check_modules_internal _is_re
++       unset(_pkgconfig_path)
++     endif()
++ 
+++    if (CYGWIN OR MSYS)
+++        find_program(_cygpath_exe cygpath.exe NO_CMAKE_ENVIRONMENT_PATH)
+++        if(_cygpath_exe)
+++            # fix the PKG_CONFIG_PATH transformed into a cmake path with incorrect msys pathes
+++            file(TO_CMAKE_PATH "$ENV{PKG_CONFIG_PATH}" _pkgconfig_path_cmake)
+++            execute_process(
+++                COMMAND ${_cygpath_exe} "-up" "${_pkgconfig_path_cmake}"
+++                RESULT_VARIABLE _cygpath_retval
+++                OUTPUT_VARIABLE _cygpath_outval
+++                ERROR_VARIABLE _cygpath_error
+++                OUTPUT_STRIP_TRAILING_WHITESPACE
+++                ERROR_STRIP_TRAILING_WHITESPACE)
+++            if (_cygpath_outval)
+++                set(ENV{PKG_CONFIG_PATH} ${_cygpath_outval})
+++            endif()
+++        endif()
+++    endif()
+++
++     # iterate through module list and check whether they exist and match the required version
++     foreach (_pkg_check_modules_pkg ${_pkg_check_modules_list})
++       set(_pkg_check_modules_exist_query)
+diff --git a/extras/tools/libtool-2.4.2-bitcode.patch b/extras/tools/libtool-2.4.6-bitcode.patch
+similarity index 55%
+rename from extras/tools/libtool-2.4.2-bitcode.patch
+rename to extras/tools/libtool-2.4.6-bitcode.patch
+index eaf953c651..0b2a809893 100644
+--- a/extras/tools/libtool-2.4.2-bitcode.patch
++++ b/extras/tools/libtool-2.4.6-bitcode.patch
+@@ -1,37 +1,35 @@
+-diff -ru libtool/libltdl/config/ltmain.m4sh libtool-fixed/libltdl/config/ltmain.m4sh
+---- libtool/libltdl/config/ltmain.m4sh	2011-10-17 12:17:05.000000000 +0200
+-+++ libtool-fixed/libltdl/config/ltmain.m4sh.new	2015-09-30 22:03:22.000000000 +0200
+-@@ -7928,16 +7928,6 @@
++--- libtool-2.4.6/build-aux/ltmain.in.orig	2019-03-06 17:18:05.670433700 +0100
+++++ libtool-2.4.6/build-aux/ltmain.in	2019-03-06 17:21:23.122227200 +0100
++@@ -8296,16 +8296,6 @@
+  
+        case $host in
+        *-*-darwin*)
+ -	# Don't allow lazy linking, it breaks C++ global constructors
+ -	# But is supposedly fixed on 10.4 or later (yay!).
+--	if test "$tagname" = CXX ; then
++-	if test CXX = "$tagname"; then
+ -	  case ${MACOSX_DEPLOYMENT_TARGET-10.0} in
+ -	    10.[0123])
+--	      func_append compile_command " ${wl}-bind_at_load"
+--	      func_append finalize_command " ${wl}-bind_at_load"
++-	      func_append compile_command " $wl-bind_at_load"
++-	      func_append finalize_command " $wl-bind_at_load"
+ -	    ;;
+ -	  esac
+ -	fi
+  	# Time to change all our "foo.ltframework" stuff back to "-framework foo"
+  	compile_deplibs=`$ECHO " $compile_deplibs" | $SED 's% \([^ $]*\).ltframework% -framework \1%g'`
+  	finalize_deplibs=`$ECHO " $finalize_deplibs" | $SED 's% \([^ $]*\).ltframework% -framework \1%g'`
+-diff -ru libtool/libltdl/config/ltmain.sh libtool-fixed/libltdl/config/ltmain.sh
+---- libtool/libltdl/config/ltmain.sh	2011-10-17 12:19:35.000000000 +0200
+-+++ libtool-fixed/libltdl/config/ltmain.sh.new	2015-09-30 22:03:44.000000000 +0200
+-@@ -8715,16 +8715,6 @@
++--- libtool-2.4.6/build-aux/ltmain.sh.orig	2019-03-06 17:18:05.690203200 +0100
+++++ libtool-2.4.6/build-aux/ltmain.sh	2019-03-06 17:21:40.825606300 +0100
++@@ -10208,16 +10208,6 @@
+  
+        case $host in
+        *-*-darwin*)
+ -	# Don't allow lazy linking, it breaks C++ global constructors
+ -	# But is supposedly fixed on 10.4 or later (yay!).
+--	if test "$tagname" = CXX ; then
++-	if test CXX = "$tagname"; then
+ -	  case ${MACOSX_DEPLOYMENT_TARGET-10.0} in
+ -	    10.[0123])
+--	      func_append compile_command " ${wl}-bind_at_load"
+--	      func_append finalize_command " ${wl}-bind_at_load"
++-	      func_append compile_command " $wl-bind_at_load"
++-	      func_append finalize_command " $wl-bind_at_load"
+ -	    ;;
+ -	  esac
+ -	fi
+diff --git a/extras/tools/libtool-2.4.6-clang-libs.patch b/extras/tools/libtool-2.4.6-clang-libs.patch
+index 93ec23bd1b..8e2a258918 100644
+--- a/extras/tools/libtool-2.4.6-clang-libs.patch
++++ b/extras/tools/libtool-2.4.6-clang-libs.patch
+@@ -6,15 +6,14 @@ compiler libraries.
+ https://crbug.com/749263
+ https://debbugs.gnu.org/cgi/bugreport.cgi?bug=27866
+ 
+---- a/libltdl/m4/libtool.m4
+-+++ b/libltdl/m4/libtool.m4
+-@@ -7531,7 +7544,7 @@
++--- libtool-2.4.6/m4/libtool.m4	2015-01-20 17:15:19.000000000 +0100
+++++ libtool-2.4.6/m4/libtool.m4.clang	2019-03-06 17:27:40.620395700 +0100
++@@ -7531,7 +7531,7 @@
+    for p in `eval "$output_verbose_link_cmd"`; do
+      case $prev$p in
+-
++ 
+ -    -L* | -R* | -l*)
+ +    -L* | -R* | -l* | */libclang_rt.*.a)
+         # Some compilers place space between "-{L,R}" and the path.
+         # Remove the space.
+         if test x-L = "$p" ||
+-
+diff --git a/extras/tools/libtool-2.4.6-response-files.patch b/extras/tools/libtool-2.4.6-response-files.patch
+new file mode 100644
+index 0000000000..a8c6d39fb7
+--- /dev/null
++++ b/extras/tools/libtool-2.4.6-response-files.patch
+@@ -0,0 +1,83 @@
++From 5fe8ae738927cd2c7e6d786b359e39876c84630c Mon Sep 17 00:00:00 2001
++From: =?UTF-8?q?Martin=20Storsj=C3=B6?= <martin@martin.st>
++Date: Wed, 10 Oct 2018 10:47:21 +0300
++Subject: [PATCH] Prefer response files over linker scripts for mingw tools
++
++The GCC/binutils tools support response files just fine, while
++lld (impersonating GNU ld) only supports response files, not
++linker scripts. Using a linker script as input just to pass a
++list of files is overkill for cases when a response file is enough.
++---
++ libtool-2.4.6/config/ltmain.m4sh | 28 ++++++++++++++--------------
++ libtool-2.4.6/m4/libtool.m4      |  2 ++
++ 2 files changed, 16 insertions(+), 14 deletions(-)
++
++diff --git libtool-2.4.6/build-aux/ltmain.sh.orig libtool-2.4.6/build-aux/ltmain.sh
++index 2641327..f6b4217 100644
++--- libtool-2.4.6/build-aux/ltmain.sh.orig	2019-05-14 15:41:21.977391100 +0200
+++++ libtool-2.4.6/build-aux/ltmain.sh	2019-05-14 15:43:07.767697900 +0200
++@@ -9852,20 +9852,7 @@ EOF
++ 	  last_robj=
++ 	  k=1
++ 
++-	  if test -n "$save_libobjs" && test : != "$skipped_export" && test yes = "$with_gnu_ld"; then
++-	    output=$output_objdir/$output_la.lnkscript
++-	    func_verbose "creating GNU ld script: $output"
++-	    echo 'INPUT (' > $output
++-	    for obj in $save_libobjs
++-	    do
++-	      func_to_tool_file "$obj"
++-	      $ECHO "$func_to_tool_file_result" >> $output
++-	    done
++-	    echo ')' >> $output
++-	    func_append delfiles " $output"
++-	    func_to_tool_file "$output"
++-	    output=$func_to_tool_file_result
++-	  elif test -n "$save_libobjs" && test : != "$skipped_export" && test -n "$file_list_spec"; then
+++	  if test -n "$save_libobjs" && test : != "$skipped_export" && test -n "$file_list_spec"; then
++ 	    output=$output_objdir/$output_la.lnk
++ 	    func_verbose "creating linker input file list: $output"
++ 	    : > $output
++@@ -9884,6 +9871,19 @@ EOF
++ 	    func_append delfiles " $output"
++ 	    func_to_tool_file "$output"
++ 	    output=$firstobj\"$file_list_spec$func_to_tool_file_result\"
+++	  elif test -n "$save_libobjs" && test : != "$skipped_export" && test yes = "$with_gnu_ld"; then
+++	    output=$output_objdir/$output_la.lnkscript
+++	    func_verbose "creating GNU ld script: $output"
+++	    echo 'INPUT (' > $output
+++	    for obj in $save_libobjs
+++	    do
+++	      func_to_tool_file "$obj"
+++	      $ECHO "$func_to_tool_file_result" >> $output
+++	    done
+++	    echo ')' >> $output
+++	    func_append delfiles " $output"
+++	    func_to_tool_file "$output"
+++	    output=$func_to_tool_file_result
++ 	  else
++ 	    if test -n "$save_libobjs"; then
++ 	      func_verbose "creating reloadable object files..."
++diff --git libtool-2.4.6/m4/libtool.m4.orig libtool-2.4.6/m4/libtool.m4
++index 6f93d32..2c5c2f0 100644
++--- libtool-2.4.6/m4/libtool.m4.orig
+++++ libtool-2.4.6/m4/libtool.m4
++@@ -4750,6 +4750,7 @@ _LT_EOF
++       _LT_TAGVAR(enable_shared_with_static_runtimes, $1)=yes
++       _LT_TAGVAR(export_symbols_cmds, $1)='$NM $libobjs $convenience | $global_symbol_pipe | $SED -e '\''/^[[BCDGRS]][[ ]]/s/.*[[ ]]\([[^ ]]*\)/\1 DATA/;s/^.*[[ ]]__nm__\([[^ ]]*\)[[ ]][[^ ]]*/\1 DATA/;/^I[[ ]]/d;/^[[AITW]][[ ]]/s/.* //'\'' | sort | uniq > $export_symbols'
++       _LT_TAGVAR(exclude_expsyms, $1)=['[_]+GLOBAL_OFFSET_TABLE_|[_]+GLOBAL__[FID]_.*|[_]+head_[A-Za-z0-9_]+_dll|[A-Za-z0-9_]+_dll_iname']
+++      _LT_TAGVAR(file_list_spec, $1)='@'
++ 
++       if $LD --help 2>&1 | $GREP 'auto-import' > /dev/null; then
++         _LT_TAGVAR(archive_cmds, $1)='$CC -shared $libobjs $deplibs $compiler_flags -o $output_objdir/$soname ${wl}--enable-auto-image-base -Xlinker --out-implib -Xlinker $lib'
++@@ -6166,6 +6167,7 @@ if test "$_lt_caught_CXX_error" != yes; then
++ 	  _LT_TAGVAR(allow_undefined_flag, $1)=unsupported
++ 	  _LT_TAGVAR(always_export_symbols, $1)=no
++ 	  _LT_TAGVAR(enable_shared_with_static_runtimes, $1)=yes
+++	  _LT_TAGVAR(file_list_spec, $1)='@'
++ 
++ 	  if $LD --help 2>&1 | $GREP 'auto-import' > /dev/null; then
++ 	    _LT_TAGVAR(archive_cmds, $1)='$CC -shared -nostdlib $predep_objects $libobjs $deplibs $postdep_objects $compiler_flags -o $output_objdir/$soname ${wl}--enable-auto-image-base -Xlinker --out-implib -Xlinker $lib'
++-- 
++2.7.4
++
+diff --git a/extras/tools/libtool-2.4.2-san.patch b/extras/tools/libtool-2.4.6-san.patch
+similarity index 52%
+rename from extras/tools/libtool-2.4.2-san.patch
+rename to extras/tools/libtool-2.4.6-san.patch
+index 4f833aac60..c70154b5ee 100644
+--- a/extras/tools/libtool-2.4.2-san.patch
++++ b/extras/tools/libtool-2.4.6-san.patch
+@@ -12,33 +12,31 @@ linker to allow trivial use of the clang address sanitizer.
+ Signed-off-by: Jeremy Huddleston Sequoia <jeremyhu@macports.org>
+ Copyright-paperwork-exempt: Yes
+ ---
+-diff -ru libtool/libltdl/config/ltmain.m4sh libtool-fixed/libltdl/config/ltmain.m4sh
+---- libtool/libltdl/config/ltmain.m4sh	2017-10-16 08:20:47.000000000 +0200
+-+++ libtool-fixed/libltdl/config/ltmain.m4sh	2017-10-16 08:22:23.000000000 +0200
+-@@ -5064,9 +5064,10 @@
+-       # -tp=*                Portland pgcc target processor selection
++--- libtool-2.4.6/build-aux/ltmain.in.orig	2019-03-06 17:24:29.400776100 +0100
+++++ libtool-2.4.6/build-aux/ltmain.in	2019-03-06 17:26:31.994381100 +0100
++@@ -5361,9 +5361,10 @@
+        # --sysroot=*          for sysroot support
+-       # -O*, -flto*, -fwhopr*, -fuse-linker-plugin GCC link-time optimization
++       # -O*, -g*, -flto*, -fwhopr*, -fuse-linker-plugin GCC link-time optimization
++       # -stdlib=*            select c++ std lib with clang
+ +      # -fsanitize=*         Clang/GCC memory and address sanitizer
+        -64|-mips[0-9]|-r[0-9][0-9]*|-xarch=*|-xtarget=*|+DA*|+DD*|-q*|-m*| \
+        -t[45]*|-txscale*|-p|-pg|--coverage|-fprofile-*|-F*|@*|-tp=*|--sysroot=*| \
+--      -O*|-flto*|-fwhopr*|-fuse-linker-plugin)
+-+      -O*|-flto*|-fwhopr*|-fuse-linker-plugin|-fsanitize=*)
++-      -O*|-g*|-flto*|-fwhopr*|-fuse-linker-plugin|-fstack-protector*|-stdlib=*)
+++      -O*|-g*|-flto*|-fwhopr*|-fuse-linker-plugin|-fstack-protector*|-stdlib=*|-fsanitize=*)
+          func_quote_for_eval "$arg"
+- 	arg="$func_quote_for_eval_result"
++ 	arg=$func_quote_for_eval_result
+          func_append compile_command " $arg"
+-diff -ru libtool/libltdl/config/ltmain.sh libtool-fixed/libltdl/config/ltmain.sh
+---- libtool/libltdl/config/ltmain.sh	2017-10-16 08:20:47.000000000 +0200
+-+++ libtool-fixed/libltdl/config/ltmain.sh	2017-10-16 08:22:58.000000000 +0200
+-@@ -5851,9 +5851,10 @@
+-       # -tp=*                Portland pgcc target processor selection
++--- libtool-2.4.6/build-aux/ltmain.sh.orig	2019-03-06 17:25:38.610781500 +0100
+++++ libtool-2.4.6/build-aux/ltmain.sh	2019-03-06 17:26:53.790387700 +0100
++@@ -7273,9 +7273,10 @@
+        # --sysroot=*          for sysroot support
+-       # -O*, -flto*, -fwhopr*, -fuse-linker-plugin GCC link-time optimization
++       # -O*, -g*, -flto*, -fwhopr*, -fuse-linker-plugin GCC link-time optimization
++       # -stdlib=*            select c++ std lib with clang
+ +      # -fsanitize=*         Clang/GCC memory and address sanitizer
+        -64|-mips[0-9]|-r[0-9][0-9]*|-xarch=*|-xtarget=*|+DA*|+DD*|-q*|-m*| \
+        -t[45]*|-txscale*|-p|-pg|--coverage|-fprofile-*|-F*|@*|-tp=*|--sysroot=*| \
+--      -O*|-flto*|-fwhopr*|-fuse-linker-plugin)
+-+      -O*|-flto*|-fwhopr*|-fuse-linker-plugin|-fsanitize=*)
++-      -O*|-g*|-flto*|-fwhopr*|-fuse-linker-plugin|-fstack-protector*|-stdlib=*)
+++      -O*|-g*|-flto*|-fwhopr*|-fuse-linker-plugin|-fstack-protector*|-stdlib=*|-fsanitize=*)
+          func_quote_for_eval "$arg"
+- 	arg="$func_quote_for_eval_result"
++ 	arg=$func_quote_for_eval_result
+          func_append compile_command " $arg"
+diff --git a/extras/tools/packages.mak b/extras/tools/packages.mak
+index ffe91ee980..d74f53590d 100644
+--- a/extras/tools/packages.mak
++++ b/extras/tools/packages.mak
+@@ -9,16 +9,16 @@ YASM_URL=http://www.tortall.net/projects/yasm/releases/yasm-$(YASM_VERSION).tar.
+ NASM_VERSION=2.14
+ NASM_URL=http://www.nasm.us/pub/nasm/releasebuilds/$(NASM_VERSION)/nasm-$(NASM_VERSION).tar.gz
+ 
+-CMAKE_VERSION=3.13.1
++CMAKE_VERSION=3.13.4
+ CMAKE_URL=http://www.cmake.org/files/v3.13/cmake-$(CMAKE_VERSION).tar.gz
+ 
+-LIBTOOL_VERSION=2.4.2
++LIBTOOL_VERSION=2.4.6
+ LIBTOOL_URL=$(GNU)/libtool/libtool-$(LIBTOOL_VERSION).tar.gz
+ 
+ AUTOCONF_VERSION=2.69
+ AUTOCONF_URL=$(GNU)/autoconf/autoconf-$(AUTOCONF_VERSION).tar.gz
+ 
+-AUTOMAKE_VERSION=1.15
++AUTOMAKE_VERSION=1.16.1
+ AUTOMAKE_URL=$(GNU)/automake/automake-$(AUTOMAKE_VERSION).tar.gz
+ 
+ M4_VERSION=1.4.18
+@@ -54,7 +54,13 @@ BISON_URL=$(GNU)/bison/bison-$(BISON_VERSION).tar.xz
+ FLEX_VERSION=2.6.4
+ FLEX_URL=https://github.com/westes/flex/releases/download/v$(FLEX_VERSION)/flex-$(FLEX_VERSION).tar.gz
+ 
+-MESON_VERSION=0.48.1
++GETTEXT_VERSION=0.19.8.1
++GETTEXT_URL=$(GNU)/gettext/gettext-$(GETTEXT_VERSION).tar.gz
++
++HELP2MAN_VERSION=1.47.6
++HELP2MAN_URL=$(GNU)/help2man/help2man-$(HELP2MAN_VERSION).tar.xz
++
++MESON_VERSION=0.51.1
+ MESON_URL=https://github.com/mesonbuild/meson/releases/download/$(MESON_VERSION)/meson-$(MESON_VERSION).tar.gz
+ 
+ NINJA_VERSION=1.8.2
+diff --git a/extras/tools/tools.mak b/extras/tools/tools.mak
+index 1d058f521b..c66bd5433d 100644
+--- a/extras/tools/tools.mak
++++ b/extras/tools/tools.mak
+@@ -2,15 +2,13 @@
+ #
+ # This file is under the same license as the vlc package.
+ 
+-include packages.mak
++include $(TOOLS)/packages.mak
++TARBALLS := $(TOOLS)
+ 
+ #
+ # common rules
+ #
+ 
+-AUTOCONF=$(PREFIX)/bin/autoconf
+-export AUTOCONF
+-
+ ifeq ($(shell curl --version >/dev/null 2>&1 || echo FAIL),)
+ download = curl -f -L -- "$(1)" > "$@.tmp" && touch $@.tmp && mv $@.tmp $@
+ else ifeq ($(shell wget --version >/dev/null 2>&1 || echo FAIL),)
+@@ -27,9 +25,19 @@ else
+ download = $(error Neither curl nor wget found!)
+ endif
+ 
++ifeq ($(shell sha512sum --version >/dev/null 2>&1 || echo FAIL),)
++SHA512SUM = sha512sum --check
++else ifeq ($(shell shasum --version >/dev/null 2>&1 || echo FAIL),)
++SHA512SUM = shasum -a 512 --check
++else ifeq ($(shell openssl version >/dev/null 2>&1 || echo FAIL),)
++SHA512SUM = openssl dgst -sha512
++else
++SHA512SUM = $(error SHA-512 checksumming not found!)
++endif
++
+ download_pkg = $(call download,$(VIDEOLAN)/$(2)/$(lastword $(subst /, ,$(@)))) || \
+ 	( $(call download,$(1)) && echo "Please upload package $(lastword $(subst /, ,$(@))) to our FTP" )  \
+-	&& grep $(@) SHA512SUMS| shasum -a 512 -c
++	&& grep $(@) $(TOOLS)/SHA512SUMS| $(SHA512SUM)
+ 
+ UNPACK = $(RM) -R $@ \
+     $(foreach f,$(filter %.tar.gz %.tgz,$^), && tar xvzfo $(f)) \
+@@ -54,11 +62,11 @@ yasm: yasm-$(YASM_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.yasm: yasm
++.buildyasm: yasm
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .yasm
++CLEAN_FILE += .buildyasm
+ CLEAN_PKG += yasm
+ DISTCLEAN_PKG += yasm-$(YASM_VERSION).tar.gz
+ 
+@@ -69,11 +77,11 @@ nasm: nasm-$(NASM_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.nasm: nasm
++.buildnasm: nasm
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .nasm
++CLEAN_FILE += .buildnasm
+ CLEAN_PKG += nasm
+ DISTCLEAN_PKG += nasm-$(NASM_VERSION).tar.gz
+ 
+@@ -84,16 +92,33 @@ cmake-$(CMAKE_VERSION).tar.gz:
+ 
+ cmake: cmake-$(CMAKE_VERSION).tar.gz
+ 	$(UNPACK)
++	$(APPLY) $(TOOLS)/cmake-msys-FindPkg.patch
+ 	$(MOVE)
+ 
+-.cmake: cmake
++.buildcmake: cmake
+ 	(cd $<; ./configure --prefix=$(PREFIX) $(CMAKEFLAGS) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .cmake
++CLEAN_FILE += .buildcmake
+ CLEAN_PKG += cmake
+ DISTCLEAN_PKG += cmake-$(CMAKE_VERSION).tar.gz
+ 
++# help2man
++help2man-$(HELP2MAN_VERSION).tar.xz:
++	$(call download_pkg,$(HELP2MAN_URL),help2man)
++
++help2man: help2man-$(HELP2MAN_VERSION).tar.xz
++	$(UNPACK)
++	$(MOVE)
++
++.buildhelp2man: help2man
++	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
++	touch $@
++
++CLEAN_FILE += .buildhelp2man
++CLEAN_PKG += help2man
++DISTCLEAN_PKG += help2man-$(HELP2MAN_VERSION).tar.xz
++
+ # libtool
+ 
+ libtool-$(LIBTOOL_VERSION).tar.gz:
+@@ -101,12 +126,15 @@ libtool-$(LIBTOOL_VERSION).tar.gz:
+ 
+ libtool: libtool-$(LIBTOOL_VERSION).tar.gz
+ 	$(UNPACK)
+-	$(APPLY) libtool-2.4.2-bitcode.patch
+-	$(APPLY) libtool-2.4.2-san.patch
+-	$(APPLY) libtool-2.4.6-clang-libs.patch
++	(cd $(UNPACK_DIR) && chmod u+w build-aux/ltmain.sh)
++	$(APPLY) $(TOOLS)/libtool-2.4.6-bitcode.patch
++	$(APPLY) $(TOOLS)/libtool-2.4.6-san.patch
++	$(APPLY) $(TOOLS)/libtool-2.4.6-clang-libs.patch
++	$(APPLY) $(TOOLS)/libtool-2.4.6-response-files.patch
+ 	$(MOVE)
+ 
+-.libtool: libtool .automake
++.buildlibtool: libtool .automake .help2man
++	(cd $(UNPACK_DIR) && autoreconf -fv)
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	ln -sf libtool $(PREFIX)/bin/glibtool
+ 	ln -sf libtoolize $(PREFIX)/bin/glibtoolize
+@@ -114,7 +142,7 @@ libtool: libtool-$(LIBTOOL_VERSION).tar.gz
+ 
+ CLEAN_PKG += libtool
+ DISTCLEAN_PKG += libtool-$(LIBTOOL_VERSION).tar.gz
+-CLEAN_FILE += .libtool
++CLEAN_FILE += .buildlibtool
+ 
+ # GNU tar (with xz support)
+ 
+@@ -125,13 +153,13 @@ tar: tar-$(TAR_VERSION).tar.bz2
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.tar: tar
++.buildtar: tar
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+ CLEAN_PKG += tar
+ DISTCLEAN_PKG += tar-$(TAR_VERSION).tar.bz2
+-CLEAN_FILE += .tar
++CLEAN_FILE += .buildtar
+ 
+ # xz
+ 
+@@ -142,13 +170,13 @@ xz: xz-$(XZ_VERSION).tar.bz2
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.xz: xz
++.buildxz: xz
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install && rm $(PREFIX)/lib/pkgconfig/liblzma.pc)
+ 	touch $@
+ 
+ CLEAN_PKG += xz
+ DISTCLEAN_PKG += xz-$(XZ_VERSION).tar.bz2
+-CLEAN_FILE += .xz
++CLEAN_FILE += .buildxz
+ 
+ # autoconf
+ 
+@@ -159,11 +187,11 @@ autoconf: autoconf-$(AUTOCONF_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.autoconf: autoconf .pkg-config
++.buildautoconf: autoconf .pkg-config
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .autoconf
++CLEAN_FILE += .buildautoconf
+ CLEAN_PKG += autoconf
+ DISTCLEAN_PKG += autoconf-$(AUTOCONF_VERSION).tar.gz
+ 
+@@ -174,13 +202,14 @@ automake-$(AUTOMAKE_VERSION).tar.gz:
+ 
+ automake: automake-$(AUTOMAKE_VERSION).tar.gz
+ 	$(UNPACK)
++	$(APPLY) $(TOOLS)/automake-clang.patch
+ 	$(MOVE)
+ 
+-.automake: automake .autoconf
++.buildautomake: automake .autoconf
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .automake
++CLEAN_FILE += .buildautomake
+ CLEAN_PKG += automake
+ DISTCLEAN_PKG += automake-$(AUTOMAKE_VERSION).tar.gz
+ 
+@@ -191,15 +220,15 @@ m4-$(M4_VERSION).tar.gz:
+ 
+ m4: m4-$(M4_VERSION).tar.gz
+ 	$(UNPACK)
+-	$(APPLY) bison-macOS-c41f233c.patch
+-	$(APPLY) bison-macOS-7df04f9.patch
++	$(APPLY) $(TOOLS)/bison-macOS-c41f233c.patch
++	$(APPLY) $(TOOLS)/bison-macOS-7df04f9.patch
+ 	$(MOVE)
+ 
+-.m4: m4
++.buildm4: m4
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .m4
++CLEAN_FILE += .buildm4
+ CLEAN_PKG += m4
+ DISTCLEAN_PKG += m4-$(M4_VERSION).tar.gz
+ 
+@@ -213,11 +242,11 @@ pkgconfig: pkg-config-$(PKGCFG_VERSION).tar.gz
+ 	mv pkg-config-lite-$(PKGCFG_VERSION) pkg-config-$(PKGCFG_VERSION)
+ 	$(MOVE)
+ 
+-.pkg-config: pkgconfig
++.buildpkg-config: pkgconfig
+ 	(cd pkgconfig; ./configure --prefix=$(PREFIX) --disable-shared --enable-static && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .pkg-config
++CLEAN_FILE += .buildpkg-config
+ CLEAN_PKG += pkgconfig
+ DISTCLEAN_PKG += pkg-config-$(PKGCFG_VERSION).tar.gz
+ 
+@@ -229,12 +258,12 @@ gas: gas-preprocessor-$(GAS_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.gas: gas
++.buildgas: gas
+ 	mkdir -p $(PREFIX)/bin
+ 	cp gas/gas-preprocessor.pl $(PREFIX)/bin/
+ 	touch $@
+ 
+-CLEAN_FILE += .gas
++CLEAN_FILE += .buildgas
+ CLEAN_PKG += gas
+ DISTCLEAN_PKG += gas-preprocessor-$(GAS_VERSION).tar.gz
+ 
+@@ -244,15 +273,15 @@ ragel-$(RAGEL_VERSION).tar.gz:
+ 
+ ragel: ragel-$(RAGEL_VERSION).tar.gz
+ 	$(UNPACK)
+-	$(APPLY) ragel-6.8-javacodegen.patch
++	$(APPLY) $(TOOLS)/ragel-6.8-javacodegen.patch
+ 	$(MOVE)
+ 
+ 
+-.ragel: ragel
++.buildragel: ragel
+ 	(cd ragel; ./configure --prefix=$(PREFIX) --disable-shared --enable-static && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+-CLEAN_FILE += .ragel
++CLEAN_FILE += .buildragel
+ CLEAN_PKG += ragel
+ DISTCLEAN_PKG += ragel-$(RAGEL_VERSION).tar.gz
+ 
+@@ -265,13 +294,13 @@ sed: sed-$(SED_VERSION).tar.bz2
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.sed: sed
++.buildsed: sed
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+ CLEAN_PKG += sed
+ DISTCLEAN_PKG += sed-$(SED_VERSION).tar.bz2
+-CLEAN_FILE += .sed
++CLEAN_FILE += .buildsed
+ 
+ # Apache ANT
+ 
+@@ -282,14 +311,14 @@ ant: apache-ant-$(ANT_VERSION).tar.bz2
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.ant: ant
++.buildant: ant
+ 	(mkdir -p $(PREFIX)/bin && cp $</bin/* $(PREFIX)/bin/)
+ 	(mkdir -p $(PREFIX)/lib && cp $</lib/* $(PREFIX)/lib/)
+ 	touch $@
+ 
+ CLEAN_PKG += ant
+ DISTCLEAN_PKG += apache-ant-$(ANT_VERSION).tar.bz2
+-CLEAN_FILE += .ant
++CLEAN_FILE += .buildant
+ 
+ 
+ # Protobuf Protoc
+@@ -301,14 +330,14 @@ protobuf: protobuf-$(PROTOBUF_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.protoc: protobuf
++.buildprotoc: protobuf
+ 	(cd $< && ./configure --prefix="$(PREFIX)" --disable-shared --enable-static && $(MAKE) && $(MAKE) install)
+ 	(find $(PREFIX) -name 'protobuf*.pc' -exec rm -f {} \;)
+ 	touch $@
+ 
+ CLEAN_PKG += protobuf
+ DISTCLEAN_PKG += protobuf-$(PROTOBUF_VERSION).tar.gz
+-CLEAN_FILE += .protoc
++CLEAN_FILE += .buildprotoc
+ 
+ #
+ # GNU bison
+@@ -319,17 +348,17 @@ bison-$(BISON_VERSION).tar.xz:
+ 
+ bison: bison-$(BISON_VERSION).tar.xz
+ 	$(UNPACK)
+-	$(APPLY) bison-macOS-c41f233c.patch
+-	$(APPLY) bison-macOS-7df04f9.patch
++	$(APPLY) $(TOOLS)/bison-macOS-c41f233c.patch
++	$(APPLY) $(TOOLS)/bison-macOS-7df04f9.patch
+ 	$(MOVE)
+ 
+-.bison: bison
++.buildbison: bison
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+ CLEAN_PKG += bison
+ DISTCLEAN_PKG += bison-$(BISON_VERSION).tar.xz
+-CLEAN_FILE += .bison
++CLEAN_FILE += .buildbison
+ 
+ #
+ # GNU flex
+@@ -342,13 +371,34 @@ flex: flex-$(FLEX_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.flex: flex
++.buildflex: flex
+ 	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
+ 	touch $@
+ 
+ CLEAN_PKG += flex
+ DISTCLEAN_PKG += flex-$(FLEX_VERSION).tar.gz
+-CLEAN_FILE += .flex
++CLEAN_FILE += .buildflex
++
++
++
++#
++# GNU gettext
++#
++
++gettext-$(GETTEXT_VERSION).tar.gz:
++	$(call download_pkg,$(GETTEXT_URL),gettext)
++
++gettext: gettext-$(GETTEXT_VERSION).tar.gz
++	$(UNPACK)
++	$(MOVE)
++
++.buildgettext: gettext
++	(cd $<; ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install)
++	touch $@
++
++CLEAN_PKG += gettext
++DISTCLEAN_PKG += gettext-$(GETTEXT_VERSION).tar.gz
++CLEAN_FILE += .buildgettext
+ 
+ #
+ # meson build
+@@ -361,14 +411,14 @@ meson: meson-$(MESON_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.meson: meson
+-	printf "#!/bin/sh\n\npython3 $(abspath .)/meson/meson.py \"\$$@\"\n" >> $(PREFIX)/bin/meson
++.buildmeson: meson
++	printf "#!/bin/sh\n\npython3 $(abspath .)/meson/meson.py \"\$$@\"\n" > $(PREFIX)/bin/meson
+ 	chmod +x $(PREFIX)/bin/meson
+ 	touch $@
+ 
+ CLEAN_PKG += meson
+ DISTCLEAN_PKG += meson-$(MESON_VERSION).tar.gz
+-CLEAN_FILE += .meson
++CLEAN_FILE += .buildmeson
+ 
+ #
+ # ninja build
+@@ -381,13 +431,13 @@ ninja: ninja-$(NINJA_VERSION).tar.gz
+ 	$(UNPACK)
+ 	$(MOVE)
+ 
+-.ninja: ninja
++.buildninja: ninja
+ 	(cd $<; ./configure.py --bootstrap && mv ninja $(PREFIX)/bin/)
+ 	touch $@
+ 
+ CLEAN_PKG += ninja
+ DISTCLEAN_PKG += ninja-$(NINJA_VERSION).tar.gz
+-CLEAN_FILE += .ninja
++CLEAN_FILE += .buildninja
+ 
+ #
+ #
