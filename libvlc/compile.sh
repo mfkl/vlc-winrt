@@ -116,14 +116,15 @@ esac
 # Build tools with the native compiler
 echo "Compiling missing tools..."
 cd extras/tools
-./bootstrap && make $MAKEFLAGS
+export PATH="`pwd`/build/bin":"$PATH"
+./bootstrap
 if [ "$HAS_CLANG" = "1" ] ; then
     # We need a patched version of libtool & cmake, regardless of which
     # version is installed on the system.
     # cmake can go away when we switch to 3.13.0
     make $MAKEFLAGS .cmake .libtool .buildcmake
 fi
-export PATH=`pwd`/build/bin:$PATH
+make $MAKEFLAGS
 cd ../../
 
 EXTRA_CPPFLAGS="-D_WIN32_WINNT=$WINVER -DWINVER=$WINVER -DWINSTORECOMPAT -D_UNICODE -DUNICODE -DWINAPI_FAMILY=WINAPI_FAMILY_APP"
